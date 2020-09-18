@@ -3,15 +3,16 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
     </head>
-    <body>
-        <div style="padding: 20px;">
-            <canvas id="canvas"></canvas>
+    <body style="margin:0; padding:20px">
+        <div style="position:relative; height:100%; width:100%">
+            <canvas id="canvas" height="800"></canvas>
         </div>
         <script>
-            const url = 'https://services1.arcgis.com/WzFsmainVTuD5KML/arcgis/rest/services/cumulative_cases/FeatureServer/0/query'
+            const url = 'https://services1.arcgis.com/WzFsmainVTuD5KML/arcgis/rest/services/Table_2b_Geographic_Distribution_of_Cases_by_Report_Date/FeatureServer/0/query'
+            // const url = 'https://services1.arcgis.com/WzFsmainVTuD5KML/arcgis/rest/services/cumulative_cases/FeatureServer/0/query'
                 + '?where=1%3D1'
                 + '&resultType=none'
-                + '&outFields=date_%2C+daily_cases%2C+economic_region'
+                + '&outFields=Date_Reported%2C+Community%2C+All_Cases'
                 + '&returnIdsOnly=false'
                 + '&returnUniqueIdsOnly=false'
                 + '&returnCountOnly=false'
@@ -23,55 +24,76 @@
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    const EARLIEST_DATE = '2020-05-01'
+                    const DAYS_BACK = 60
+                    const earliest_date = new Date()
+                    earliest_date.setDate(earliest_date.getDate() - DAYS_BACK)
 
                     const state_data = data.features
                         .map(f => f.attributes)
-                        .filter(d => d.Economic_Region === 'Statewide')
-                        .filter(d => d.Date_ > (new Date(EARLIEST_DATE)).valueOf())
-                        .map(i => ({x: (new Date(i.Date_)).toISOString().split('T')[0], y: i.daily_cases}))
+                        .filter(d => new Date(d.Date_Reported).valueOf() > earliest_date.valueOf())
+                        .map(i => ({y: (new Date(i.Date_Reported)).toISOString().split('T')[0], x: i.All_Cases}))
+                        .reduce(
+                            (accumulator, current) => {
+                                let date_entry = accumulator.find(item => item.y === current.y)
+                                if (!date_entry)
+                                    accumulator.push(current)
+                                else
+                                    date_entry.x += current.x
+
+                                return accumulator
+                            },
+                            []
+                        )
 
                     const anchorage_data = data.features
                         .map(f => f.attributes)
-                        .filter(d => d.Economic_Region === 'Anchorage')
-                        .filter(d => d.Date_ > (new Date(EARLIEST_DATE)).valueOf())
-                        .map(i => ({x: (new Date(i.Date_)).toISOString().split('T')[0], y: i.daily_cases}))
-
+                        .filter(d => d.Community === 'Anchorage')
+                        .filter(d => new Date(d.Date_Reported).valueOf() > earliest_date.valueOf())
+                        .map(i => ({y: (new Date(i.Date_Reported)).toISOString().split('T')[0], x: i.All_Cases}))
 
                     // force another day at the end (because the chart cuts off the last day otherwise)
-                    const ordered_dates = data.features.slice().map(d => d.attributes.Date_).sort()
+                    const ordered_dates = data.features.slice().map(d => d.attributes.Date_Reported).sort()
                     const last_day = new Date(ordered_dates[ordered_dates.length - 1])
                     last_day.setDate(last_day.getDate() + 1)
-                    state_data.push({x: last_day.toISOString().split('T')[0], y: 0})
-                    anchorage_data.push({x: last_day.toISOString().split('T')[0], y: 0})
+                    state_data.push({y: last_day.toISOString().split('T')[0], x: 0})
+                    anchorage_data.push({y: last_day.toISOString().split('T')[0], x: 0})
 
 
                     const ctx = document.getElementById('canvas').getContext('2d');
                     const myLineChart = new Chart(ctx, {
-                        type: 'bar',
+                        type: 'horizontalBar',
                         data: {
                             datasets: [
                                 {
                                     label: 'Daily Statewide cases',
                                     backgroundColor: '#f00',
                                     data: state_data,
+                                    // barThickness: 20,
                                 },
                                 {
                                     label: 'Daily Anchorage cases',
                                     backgroundColor: '#00f',
                                     data: anchorage_data,
-                                }
+                                    // barThickness: 20,
+                                },
                             ]
                         },
                         options: {
                             scales: {
-                            xAxes: [{
-                                type: 'time',
-                                gridLines: {
-                                    display: false
-                                },
-                            }],
-                        },
+                                yAxes: [{
+                                    type: 'time',
+                                    gridLines: {
+                                        display: false,
+                                    },
+                                    time: {
+                                        unit: 'day',
+                                    },
+                                    // stacked: true,
+                                }],
+                                xAxes: [{
+                                    position: 'top',
+                                }],
+                            },
                         }
                     });
                 });
