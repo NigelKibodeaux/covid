@@ -59,20 +59,20 @@
                     anchorage_data.push({y: last_day.toISOString().split('T')[0], x: 0})
 
 
-                    const ctx = document.getElementById('canvas').getContext('2d');
+                    const ctx = document.getElementById('canvas').getContext('2d')
                     const myLineChart = new Chart(ctx, {
                         type: 'horizontalBar',
                         data: {
                             datasets: [
                                 {
                                     label: 'Daily Statewide cases',
-                                    backgroundColor: '#f00',
+                                    backgroundColor: '#EF5350',
                                     data: state_data,
                                     // barThickness: 20,
                                 },
                                 {
                                     label: 'Daily Anchorage cases',
-                                    backgroundColor: '#00f',
+                                    backgroundColor: '#29B6F6',
                                     data: anchorage_data,
                                     // barThickness: 20,
                                 },
@@ -94,9 +94,28 @@
                                     position: 'top',
                                 }],
                             },
+                            tooltips: {
+                                enabled: false,
+                            },
+                            animation: {
+                                onProgress: function (animation) {
+                                    const chartInstance = animation.chart
+                                    const ctx = chartInstance.ctx
+
+                                    this.data.datasets.forEach(function (dataset, i) {
+                                        const meta = chartInstance.controller.getDatasetMeta(i)
+                                        meta.data.forEach(function (bar, index) {
+                                            const data = dataset.data[index]
+                                            if (!data.x) return
+
+                                            ctx.fillText(data.x, bar._model.x + 2, bar._model.y)
+                                        })
+                                    })
+                                }
+                            },
                         }
-                    });
-                });
+                    })
+                })
         </script>
     </body>
 </html>
