@@ -8,11 +8,18 @@
             <canvas id="canvas" height="800"></canvas>
         </div>
         <script>
+            const DAYS_BACK = 60
+            const earliest_date = new Date()
+            earliest_date.setDate(earliest_date.getDate() - DAYS_BACK)
+            const month = (earliest_date.getMonth() + 1).toString().padStart(2, '0')
+            const date = (earliest_date.getMonth() + 1).toString().padStart(2, '0')
+            const year = earliest_date.getFullYear()
+
             const url = 'https://services1.arcgis.com/WzFsmainVTuD5KML/arcgis/rest/services/Table_2b_Geographic_Distribution_of_Cases_by_Report_Date/FeatureServer/0/query'
-            // const url = 'https://services1.arcgis.com/WzFsmainVTuD5KML/arcgis/rest/services/cumulative_cases/FeatureServer/0/query'
-                + '?where=1%3D1'
+                + `?where=date_reported > '${month}/${date}/${year}'`
                 + '&resultType=none'
-                + '&outFields=Date_Reported%2C+Community%2C+All_Cases'
+                + '&outFields=Date_Reported, Community, All_Cases'
+                + '&orderByFields=Date_Reported desc'
                 + '&returnIdsOnly=false'
                 + '&returnUniqueIdsOnly=false'
                 + '&returnCountOnly=false'
@@ -24,13 +31,9 @@
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    const DAYS_BACK = 60
-                    const earliest_date = new Date()
-                    earliest_date.setDate(earliest_date.getDate() - DAYS_BACK)
 
                     const state_data = data.features
                         .map(f => f.attributes)
-                        .filter(d => new Date(d.Date_Reported).valueOf() > earliest_date.valueOf())
                         .map(i => ({y: (new Date(i.Date_Reported)).toISOString().split('T')[0], x: i.All_Cases}))
                         .reduce(
                             (accumulator, current) => {
@@ -48,7 +51,6 @@
                     const anchorage_data = data.features
                         .map(f => f.attributes)
                         .filter(d => d.Community === 'Anchorage')
-                        .filter(d => new Date(d.Date_Reported).valueOf() > earliest_date.valueOf())
                         .map(i => ({y: (new Date(i.Date_Reported)).toISOString().split('T')[0], x: i.All_Cases}))
 
                     // force another day at the end (because the chart cuts off the last day otherwise)
