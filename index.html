@@ -15,11 +15,16 @@
             const date = (earliest_date.getMonth() + 1).toString().padStart(2, '0')
             const year = earliest_date.getFullYear()
 
-            const url = 'https://services1.arcgis.com/WzFsmainVTuD5KML/arcgis/rest/services/Table_2b_Geographic_Distribution_of_Cases_by_Report_Date/FeatureServer/0/query'
-                + `?where=date_reported > '${month}/${date}/${year}'`
+            const statistics = [{
+                statisticType: 'count',
+                onStatisticField: 'Occurrence',
+                outStatisticFieldName: 'Occurrences',
+            }]
+            const url = 'https://services1.arcgis.com/WzFsmainVTuD5KML/arcgis/rest/services/Report_Date/FeatureServer/0/query'
+                + `?where=ReportDate>'${month}/${date}/${year}'`
                 + '&resultType=none'
-                + '&outFields=Date_Reported, Community, All_Cases'
-                + '&orderByFields=Date_Reported desc'
+                + '&outFields=Econ_Name, ReportDate, Occurrence'
+                + '&orderByFields=ReportDate desc'
                 + '&returnIdsOnly=false'
                 + '&returnUniqueIdsOnly=false'
                 + '&returnCountOnly=false'
@@ -27,6 +32,8 @@
                 + '&cacheHint=false'
                 + '&sqlFormat=none'
                 + '&f=json'
+                + '&outStatistics=' + JSON.stringify(statistics)
+                + '&groupByFieldsForStatistics=Econ_Name,ReportDate'
 
             fetch(url)
                 .then(response => response.json())
@@ -34,7 +41,7 @@
 
                     const state_data = data.features
                         .map(f => f.attributes)
-                        .map(i => ({y: (new Date(i.Date_Reported)).toISOString().split('T')[0], x: i.All_Cases}))
+                        .map(i => ({y: (new Date(i.ReportDate)).toISOString().split('T')[0], x: i.Occurrences}))
                         .reduce(
                             (accumulator, current) => {
                                 let date_entry = accumulator.find(item => item.y === current.y)
@@ -50,11 +57,11 @@
 
                     const anchorage_data = data.features
                         .map(f => f.attributes)
-                        .filter(d => d.Community === 'Anchorage')
-                        .map(i => ({y: (new Date(i.Date_Reported)).toISOString().split('T')[0], x: i.All_Cases}))
+                        .filter(d => d.Econ_Name === 'Anchorage')
+                        .map(i => ({y: (new Date(i.ReportDate)).toISOString().split('T')[0], x: i.Occurrences}))
 
                     // force another day at the end (because the chart cuts off the last day otherwise)
-                    const ordered_dates = data.features.slice().map(d => d.attributes.Date_Reported).sort()
+                    const ordered_dates = data.features.slice().map(d => d.attributes.ReportDate).sort()
                     const last_day = new Date(ordered_dates[ordered_dates.length - 1])
                     last_day.setDate(last_day.getDate() + 1)
                     state_data.push({y: last_day.toISOString().split('T')[0], x: 0})
